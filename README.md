@@ -4,6 +4,7 @@
 
 ## 구조
 - `www/` — 게임 본체 (오프라인 동작, 홈 화면 앱/PWA 지원)
+- `www/local.html` — 근처 대결 버전. 서버 없이 같은 와이파이의 두 기기가 코드를 주고받아 직접 연결해요 (웹 주소 뒤에 `/local.html`)
 - `.github/workflows/pages.yml` — `main` 푸시 시 웹 버전 자동 배포 (GitHub Pages)
 - `.github/workflows/android-apk.yml` — `main` 푸시 시 안드로이드 APK 자동 빌드 → Releases(`apk-latest`)
 - `capacitor.config.json`, `package.json`, `setup.sh` — iOS 앱(Capacitor) 설정

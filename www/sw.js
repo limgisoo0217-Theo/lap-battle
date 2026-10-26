@@ -1,6 +1,6 @@
 // 오프라인 지원: 네트워크 우선, 실패하면 저장본 사용 (수정 내용이 바로 반영됨)
 var CACHE = 'lap-battle-v1';
-var FILES = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+var FILES = ['./', './index.html', './local.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }));
   self.skipWaiting();
