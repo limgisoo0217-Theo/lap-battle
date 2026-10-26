@@ -1,0 +1,785 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>스피드 랩 레전드</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="스피드 랩 레전드">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{overscroll-behavior:none;-webkit-touch-callout:none;scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<style>
+/* Layout: one narrow column like the iOS stopwatch. Rank card on top, clock, versus panel, one huge LAP disc, lap log, ladder, top 10. */
+:root {
+  --bg: #000;
+  --panel: #131315;
+  --disc: #2c2c2e;
+  --disc-hot: #444447;
+  --line: #2a2a2d;
+  --fg: #fff;
+  --dim: #8e8e93;
+  --accent: #ff9f0a;
+  --go: #30d158;
+  --go-bg: #0e2a17;
+  --stop: #ff453a;
+  --stop-bg: #2e1210;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --sans: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body {
+  color: var(--fg); font-family: var(--sans); font-size: 15px;
+  padding-block: 12px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* nickname screen */
+#nickScreen { min-height: 78vh; justify-content: center; gap: 22px; }
+#nickScreen h1 { margin: 0; font-size: 2rem; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+#nickScreen p { margin: 0; color: var(--dim); line-height: 1.6; }
+.nickrow { display: flex; gap: 10px; }
+#nickInput { flex: 1; min-width: 0; font: inherit; font-size: 1.25rem; padding: 14px 16px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.btn-main { background: var(--accent); color: #1a1000; font-weight: 700; padding: 0 22px; border-radius: 14px; font-size: 1.05rem; }
+.hint-err { color: var(--stop); min-height: 1.2em; font-size: .9rem; }
+
+/* tier badge: hexagon with a ring, colors come from the tier */
+.badge { --s: 56px; width: var(--s); height: var(--s); position: relative; flex: none; clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); background: var(--ring, #555); }
+.badge i { position: absolute; inset: calc(var(--s) * .06); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); background: linear-gradient(150deg, var(--c1), var(--c2)); display: grid; place-items: center; font-style: normal; font-family: var(--mono); font-weight: 500; font-size: calc(var(--s) * .38); color: var(--tf, #111); }
+.badge.sm { --s: 26px; }
+.badge.xs { --s: 22px; }
+.badge.lg { --s: 72px; }
+
+/* rank card */
+.rank { display: flex; align-items: center; gap: 14px; background: var(--panel); border-radius: 18px; padding: 12px 14px; }
+.rank .mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rank .l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rank .tn { font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
+.rank .lv { font-family: var(--mono); font-weight: 500; color: var(--accent); white-space: nowrap; }
+.xpbar { height: 6px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.xpbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.rank .l3 { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: .78rem; }
+.rank .l3 span:first-child { font-family: var(--mono); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.me-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--panel); border-radius: 999px; max-width: 60%; }
+.me-chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.me-chip span { color: var(--dim); font-size: .8rem; white-space: nowrap; }
+.online { display: inline-flex; align-items: center; gap: 7px; color: var(--dim); font-size: .85rem; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.dot.on { background: var(--go); }
+
+/* clock */
+.clock { font-family: var(--mono); font-weight: 300; font-size: clamp(3.4rem, 17vw, 5.6rem); text-align: center; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.bar { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.status { min-height: 3rem; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--dim); font-size: .95rem; text-wrap: balance; }
+.status.big { font-family: var(--mono); font-weight: 500; font-size: 3rem; color: var(--accent); }
+.status.live { color: var(--fg); font-weight: 500; }
+
+/* lobby list and versus panel share one box */
+.board { background: var(--panel); border-radius: 16px; padding: 4px 14px; max-height: 9.5rem; overflow-y: auto; }
+.prow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.prow:last-child { border-bottom: 0; }
+.prow .rk { width: 1.3rem; color: var(--dim); font-family: var(--mono); font-size: .85rem; }
+.prow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .nm em { font-style: normal; color: var(--accent); font-size: .78rem; margin-left: 6px; }
+.prow .ct { font-family: var(--mono); font-size: 1.05rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prow .ct.wait { color: var(--dim); font-size: .8rem; font-family: var(--sans); font-weight: 400; }
+.prow.me .nm { color: var(--accent); }
+.vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; padding: 10px 0 12px; }
+.vs .side { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.vs .side b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.vs .side small { color: var(--dim); font-size: .75rem; }
+.vs .num { font-family: var(--mono); font-weight: 500; font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.vs .side.me .num { color: var(--accent); }
+.vs .x { color: var(--dim); font-family: var(--mono); }
+.tug { grid-column: 1 / -1; height: 6px; border-radius: 6px; background: var(--stop); overflow: hidden; }
+.tug i { display: block; height: 100%; width: 50%; background: var(--accent); transition: width .1s; }
+
+/* buttons */
+.pad { display: flex; justify-content: center; align-items: center; gap: 28px; padding: 4px 0; }
+.disc { border-radius: 50%; display: grid; place-items: center; text-align: center; user-select: none; -webkit-user-select: none; position: relative; }
+.disc::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 1px solid rgba(255,255,255,.08); pointer-events: none; }
+#lapBtn { width: min(46vw, 190px); aspect-ratio: 1; background: var(--disc); transition: transform .05s, background .05s; }
+#lapBtn.hot { background: var(--disc-hot); }
+#lapBtn:active, #lapBtn.press { transform: scale(.93); background: #5a5a5e; }
+#lapBtn:disabled { background: #1c1c1e; color: var(--dim); cursor: default; transform: none; }
+#lapBtn .t { font-size: 1.1rem; }
+#lapBtn .n { font-family: var(--mono); font-size: 2.6rem; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+#goBtn { width: 88px; aspect-ratio: 1; background: var(--go-bg); color: var(--go); font-weight: 700; font-size: 1.05rem; }
+#goBtn.stop { background: var(--stop-bg); color: var(--stop); }
+.pill { align-self: center; padding: 9px 18px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--dim); font-size: .85rem; }
+.pill:disabled { opacity: .4; cursor: default; }
+
+/* lap log */
+.sec-title { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0 0; font-size: .95rem; font-weight: 700; }
+.sec-title span { color: var(--dim); font-weight: 400; font-size: .8rem; }
+.laps { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.lrow { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 2px; border-bottom: 1px solid var(--line); font-size: 1.05rem; }
+.lrow > :nth-child(2) { text-align: center; }
+.lrow > :nth-child(3) { text-align: right; }
+.lrow.head { color: var(--dim); font-family: var(--sans); font-size: .8rem; }
+.lrow.best { color: var(--go); }
+.lrow.worst { color: var(--stop); }
+.empty { color: var(--dim); font-size: .9rem; padding: 14px 2px; line-height: 1.6; }
+
+/* ladder */
+.ladder { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; }
+.ladder .st { flex: 1 0 58px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border-radius: 12px; border: 1px solid transparent; color: var(--dim); font-size: .7rem; text-align: center; }
+.ladder .st.cur { border-color: var(--accent); color: var(--fg); background: var(--panel); }
+.ladder .st.done { opacity: .55; }
+.ladder .st:not(.cur):not(.done) { opacity: .85; }
+.hof { background: var(--panel); border-radius: 16px; padding: 4px 14px; max-height: 24rem; overflow-y: auto; }
+.hof .prow .rk { width: 1.8rem; }
+.hof .prow.r1 .rk { color: #ffd60a; font-weight: 500; }
+.hof .prow.r2 .rk { color: #d1d1d6; font-weight: 500; }
+.hof .prow.r3 .rk { color: #e8a56a; font-weight: 500; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { flex: 1; padding: 9px 0; border-radius: 999px; background: var(--panel); color: var(--dim); font-weight: 500; border: 1px solid var(--line); }
+.tabs button[aria-pressed="true"] { background: var(--disc); color: var(--accent); font-weight: 700; }
+.myrank { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--panel); border-radius: 14px; padding: 12px 14px; font-size: .9rem; }
+.myrank b { font-family: var(--mono); font-weight: 500; color: var(--accent); font-size: 1.15rem; }
+.myrank span { color: var(--dim); font-size: .8rem; text-align: right; }
+.rule { color: var(--dim); font-size: .8rem; line-height: 1.6; }
+
+/* result sheet */
+#sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center; padding: 0 max(8px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px)); pointer-events: none; }
+#sheet .card { pointer-events: auto; width: 100%; max-width: 520px; background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 22px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -12px 40px rgba(0,0,0,.7); max-height: 80vh; overflow-y: auto; }
+#sheet h2 { margin: 0; font-size: 1.6rem; font-weight: 700; text-wrap: balance; }
+#sheet .sub { color: var(--dim); font-size: .9rem; line-height: 1.5; }
+.shift { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 0; }
+.shift .ar { color: var(--dim); font-size: 1.4rem; }
+.shift .nm { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .85rem; }
+.score { display: flex; justify-content: center; align-items: baseline; gap: 12px; font-family: var(--mono); }
+.score b { font-size: 2.2rem; font-weight: 500; }
+.score .me { color: var(--accent); }
+.gain { text-align: center; color: var(--dim); font-size: .85rem; }
+.gain b { color: var(--accent); font-family: var(--mono); font-weight: 500; }
+.actions { display: flex; gap: 10px; margin-top: 2px; }
+.actions button { flex: 1; padding: 13px 0; border-radius: 14px; font-weight: 700; }
+.actions .again { background: var(--go-bg); color: var(--go); }
+.actions .close { background: var(--disc); }
+
+/* mid-round level-up toast */
+#toast { position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -140%); z-index: 30; background: var(--accent); color: #1a1000; font-weight: 700; padding: 10px 20px; border-radius: 999px; transition: transform .25s; pointer-events: none; white-space: nowrap; }
+#toast.on { transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { #lapBtn, #toast, .xpbar i { transition: none; } }
+</style>
+
+<div class="wrap" id="nickScreen" hidden>
+  <h1>닉네임을 정하고<br>스피드 랩 레전드에 입장해요</h1>
+  <p>같은 티어끼리 10초 동안 랩 버튼을 더 많이 누르면 이겨요. 이기면 승급하고, 지면 한 단계 내려가요. 처음엔 언랭크로 시작해요.</p>
+  <div class="tabs" id="regionTabs" role="group" aria-label="지역" hidden>
+    <button type="button" data-r="KR" aria-pressed="false">국내 (한국)</button>
+    <button type="button" data-r="XX" aria-pressed="false">해외</button>
+  </div>
+  <form class="nickrow" id="nickForm">
+    <input id="nickInput" maxlength="10" autocomplete="off" autocapitalize="off" placeholder="닉네임 (10자 이내)" aria-label="닉네임">
+    <button class="btn-main" type="submit">입장</button>
+  </form>
+  <div class="hint-err" id="nickErr" role="alert"></div>
+</div>
+
+<div class="wrap" id="gameScreen" hidden>
+  <div class="top">
+    <button class="me-chip" id="nickBtn" aria-label="닉네임 변경"><b id="meName"></b><span>변경</span></button>
+    <div class="online"><i class="dot" id="onDot"></i><span id="onTxt">혼자 연습</span></div>
+  </div>
+
+  <div class="rank" id="rankCard"></div>
+
+  <div class="clock" id="clock">00:00.00</div>
+  <div class="bar"><i id="barFill"></i></div>
+  <div class="status" id="status"></div>
+
+  <div class="board" id="board"></div>
+
+  <div class="pad">
+    <button class="disc" id="lapBtn" disabled aria-label="랩 누르기"><span><span class="t">랩</span><br><span class="n" id="myCount">0</span></span></button>
+    <button class="disc" id="goBtn">대결</button>
+  </div>
+  <button class="pill" id="botBtn">AI 연습전 (티어 변화 없음)</button>
+
+  <div class="sec-title">내 랩 기록 <span id="lapNote"></span></div>
+  <div class="laps" id="laps"></div>
+
+  <div class="sec-title">티어 사다리 <span>한 칸씩 올라가요</span></div>
+  <div class="ladder" id="ladder"></div>
+  <div class="rule">승리하면 브론즈 1, 2, 3 순서로 오르고 다음 티어로 넘어가요. 같은 티어끼리만 매칭돼요. 랩을 누를 때마다 경험치가 쌓여 레벨이 올라요.</div>
+
+  <div class="sec-title" hidden>랭킹 <span>티어, 경험치 순 · TOP 50</span></div>
+  <div class="tabs" id="rankTabs" role="group" aria-label="랭킹 범위" hidden>
+    <button data-t="world" aria-pressed="true">세계 랭킹</button>
+    <button data-t="kr" aria-pressed="false">국내 랭킹</button>
+  </div>
+  <div class="myrank" id="myRank" hidden></div>
+  <div class="hof" id="hof" hidden><div class="empty">랭킹을 불러오는 중이에요.</div></div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<div id="sheet" hidden>
+  <div class="card">
+    <h2 id="rTitle"></h2>
+    <div class="score" id="rScore"></div>
+    <div class="shift" id="rShift"></div>
+    <div class="sub" id="rSub"></div>
+    <div class="gain" id="rGain"></div>
+    <div class="actions">
+      <button class="again" id="rAgain">한 판 더</button>
+      <button class="close" id="rClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var DUR = 10, MAXSTEP = 24;
+  var COUNTRY = 'XX';
+  try { if (Intl.DateTimeFormat().resolvedOptions().timeZone === 'Asia/Seoul') COUNTRY = 'KR'; } catch (e) {}
+  var hofAll = [], hofTab = 'world', regionChosen = false;
+  try { var rg = localStorage.getItem('lapbattle.region'); if (rg === 'KR' || rg === 'XX') { COUNTRY = rg; regionChosen = true; } } catch (e) {}
+  var TIERS = [
+    { n: '브론즈', c1: '#f0a56c', c2: '#8a4f22', ring: '#ffd0a6', tf: '#1d0f05' },
+    { n: '실버', c1: '#f3f6fa', c2: '#9aa3b2', ring: '#ffffff', tf: '#111111' },
+    { n: '골드', c1: '#ffe27a', c2: '#d49a14', ring: '#fff3b8', tf: '#2a1c00' },
+    { n: '다이아', c1: '#a8ecff', c2: '#2fa8e6', ring: '#e2f8ff', tf: '#00202e' },
+    { n: '플래티넘', c1: '#8ff5d6', c2: '#1fae8e', ring: '#d3fff2', tf: '#00241b' },
+    { n: '오닉스', c1: '#5b5b66', c2: '#17171c', ring: '#a3a3b3', tf: '#ffffff' },
+    { n: '네메시스', c1: '#ff7a8f', c2: '#c0102f', ring: '#ffc0ca', tf: '#ffffff' },
+    { n: '아크네메시스', c1: '#d7a8ff', c2: '#6a1fd1', ring: '#ffe3ff', tf: '#ffffff' }
+  ];
+  function tierOf(step) { return step <= 0 ? -1 : Math.floor((step - 1) / 3); }
+  function divOf(step) { return (step - 1) % 3 + 1; }
+  function label(step) { return step <= 0 ? '언랭크' : TIERS[tierOf(step)].n + ' ' + divOf(step); }
+  function levelInfo(xp) {
+    var L = 1, need = 60;
+    while (xp >= need) { xp -= need; L++; need = 60 + 25 * (L - 1); }
+    return { L: L, cur: xp, need: need };
+  }
+
+  var nick = '', P = { step: 0, xp: 0, wins: 0, losses: 0 };
+  var phase = 'idle'; // idle | searching | countdown | running | done
+  var startAt = 0, taps = 0, laps = [], opp = null, ranked = false, settled = false, forfeit = false;
+  var lastSeenStart = 0, raf = 0, searchTimer = 0, settleTimer = 0, room = null, db = null, uid = null, connected = false;
+  var searchBegan = 0, unsubHof = null, xpStart = 0, lvStart = 1, stepStart = 0, lastBoard = 0, toastTimer = 0;
+
+  try { nick = localStorage.getItem('lapbattle.nick') || ''; } catch (e) {}
+  try { var sp = JSON.parse(localStorage.getItem('lapbattle.profile') || 'null'); if (sp && typeof sp.step === 'number') P = { step: Math.max(0, Math.min(MAXSTEP, sp.step | 0)), xp: Math.max(0, sp.xp | 0), wins: sp.wins | 0, losses: sp.losses | 0 }; } catch (e) {}
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(ms) {
+    var cs = Math.floor(ms / 10), m = Math.floor(cs / 6000), s = Math.floor((cs % 6000) / 100), c = cs % 100;
+    return pad2(m) + ':' + pad2(s) + '.' + pad2(c);
+  }
+  function badge(step, size) {
+    var t = tierOf(step), T = t < 0 ? { c1: '#6b6b70', c2: '#2c2c2e', ring: '#8e8e93', tf: '#fff' } : TIERS[t];
+    var b = el('div', 'badge' + (size ? ' ' + size : ''));
+    b.style.setProperty('--c1', T.c1); b.style.setProperty('--c2', T.c2); b.style.setProperty('--ring', T.ring); b.style.setProperty('--tf', T.tf);
+    var i = el('i', '', step <= 0 ? '?' : String(divOf(step)));
+    b.appendChild(i);
+    return b;
+  }
+  function saveLocal() { try { localStorage.setItem('lapbattle.profile', JSON.stringify(P)); } catch (e) {} }
+  function myTier() { return Math.max(0, tierOf(P.step)); }
+  function myPeer() {
+    if (!room) return null;
+    var ps = room.peers();
+    for (var i = 0; i < ps.length; i++) if (ps[i].isMe && ps[i].sameTab) return ps[i].peer;
+    return null;
+  }
+  function sync(extra) {
+    if (!room) return;
+    var o = { nick: nick || null, tier: myTier(), step: P.step };
+    if (extra) for (var k in extra) o[k] = extra[k];
+    room.presence(o);
+  }
+
+  /* ---------- screens ---------- */
+  function show() {
+    var has = !!nick;
+    $('nickScreen').hidden = has;
+    $('gameScreen').hidden = !has;
+    if (has) { $('meName').textContent = nick; renderAll(); subscribeHof(); }
+    else { setTimeout(function () { $('nickInput').focus(); }, 50); }
+  }
+  $('nickForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = $('nickInput').value.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+    if (!v) { $('nickErr').textContent = '닉네임을 한 글자 이상 적어 주세요.'; return; }
+    $('nickErr').textContent = '';
+    nick = v.slice(0, 10);
+    try { localStorage.setItem('lapbattle.nick', nick); } catch (e2) {}
+    sync();
+    if (P.step > 0) saveRemote();
+    show();
+  });
+  $('nickBtn').addEventListener('click', function () {
+    if (phase !== 'idle' && phase !== 'done') return;
+    var old = nick; nick = ''; show(); $('nickInput').value = old;
+  });
+
+  /* ---------- who is here ---------- */
+  function rivals() {
+    if (!room) return [];
+    return room.peers().filter(function (p) {
+      return p.kind === 'viewer' && !p.isMe && p.presence && typeof p.presence.nick === 'string' && p.presence.nick;
+    });
+  }
+  function onPeers() {
+    var now = Date.now(), me = myPeer();
+    if (phase === 'searching' && me) {
+      var rs = rivals();
+      for (var i = 0; i < rs.length; i++) {
+        var pr = rs[i].presence;
+        if (pr.opp === me && typeof pr.startAt === 'number' && pr.startAt > lastSeenStart && now < pr.startAt) {
+          lastSeenStart = pr.startAt;
+          begin(pr.startAt, { peer: rs[i].peer, human: true, nick: pr.nick, step: pr.step || 0, taps: 0, done: false });
+          break;
+        }
+      }
+      if (phase === 'searching') tryMatch();
+    }
+    if (phase === 'done' && !settled) { readOpp(); if (opp && (opp.done || opp.bot)) scheduleSettle(500); }
+    renderOnline();
+    if (phase !== 'running') renderBoard();
+    if (phase === 'searching') renderStatusSearch();
+  }
+  function renderOnline() {
+    var n = rivals().length + 1;
+    $('onDot').className = 'dot' + (room && connected && n > 1 ? ' on' : '');
+    $('onTxt').textContent = !room ? 'AI 대결' : (n > 1 ? '접속 ' + n + '명' : '접속자 없음');
+  }
+
+  /* ---------- matchmaking: same tier, pair by sorted peer id ---------- */
+  function searchers() {
+    var me = myPeer(), t = myTier(), list = [];
+    if (!me) return list;
+    list.push({ peer: me, me: true });
+    rivals().forEach(function (p) {
+      var pr = p.presence;
+      if (pr.searching && pr.tier === t && !(typeof pr.startAt === 'number' && Date.now() < pr.startAt)) list.push({ peer: p.peer, nick: pr.nick, step: pr.step || 0, me: false });
+    });
+    list.sort(function (a, b) { return a.peer < b.peer ? -1 : a.peer > b.peer ? 1 : 0; });
+    return list;
+  }
+  function tryMatch() {
+    if (phase !== 'searching') return;
+    var list = searchers(), i = -1;
+    for (var k = 0; k < list.length; k++) if (list[k].me) i = k;
+    if (i < 0 || i % 2 !== 0 || !list[i + 1]) return;
+    var o = list[i + 1], s = Date.now() + 3300;
+    lastSeenStart = s;
+    begin(s, { peer: o.peer, human: true, nick: o.nick, step: o.step, taps: 0, done: false });
+  }
+  function renderStatusSearch() {
+    var list = searchers();
+    var st = $('status'); st.className = 'status';
+    if (!room) { st.textContent = 'AI 상대를 부르는 중...'; return; }
+    var tn = TIERS[myTier()].n;
+    var left = Math.max(0, 8 - Math.floor((Date.now() - searchBegan) / 1000));
+    st.textContent = tn + ' 티어 상대를 찾는 중... ' + (left > 0 ? left + '초 뒤 상대가 없으면 AI와 붙어요' : 'AI 상대를 부르는 중');
+  }
+  function findMatch() {
+    if (phase !== 'idle' && phase !== 'done') return;
+    $('sheet').hidden = true; clearTimeout(settleTimer);
+    phase = 'searching'; taps = 0; laps = []; opp = null; settled = false; searchBegan = Date.now();
+    sync({ searching: true, startAt: null, opp: null, rid: 0, taps: 0, done: false });
+    renderAll(); renderStatusSearch();
+    clearInterval(searchTimer);
+    searchTimer = setInterval(function () {
+      if (phase !== 'searching') { clearInterval(searchTimer); return; }
+      tryMatch();
+      if (phase !== 'searching') return;
+      if (Date.now() - searchBegan >= (room ? 8000 : 1200)) { startRankedBot(); return; }
+      renderStatusSearch();
+    }, 500);
+  }
+  function startRankedBot() {
+    var t = myTier(), s = Date.now() + 3300;
+    var cps = 4 + t * 0.6 + (Math.random() * 1.2 - 0.6);
+    begin(s, { bot: true, human: false, rankedBot: true, nick: 'AI ' + TIERS[t].n, step: P.step, taps: 0, done: false, cps: cps });
+  }
+  function startBot() {
+    if (phase !== 'idle' && phase !== 'done') return;
+    var s = Date.now() + 3300;
+    begin(s, { bot: true, human: false, nick: '연습봇', step: P.step, taps: 0, done: false, cps: 4.2 + Math.min(P.step, 24) * 0.17 });
+  }
+
+  /* ---------- round ---------- */
+  function begin(sAt, o) {
+    cancelAnimationFrame(raf); clearInterval(searchTimer); clearTimeout(settleTimer);
+    phase = 'countdown'; startAt = sAt; taps = 0; laps = []; opp = o; ranked = !!(o.human || o.rankedBot); settled = false; forfeit = false;
+    xpStart = P.xp; lvStart = levelInfo(P.xp).L; stepStart = P.step;
+    $('sheet').hidden = true;
+    sync({ searching: false, rid: sAt, startAt: sAt, opp: o.peer || null, taps: 0, done: false });
+    renderAll(); loop();
+  }
+  function readOpp() {
+    if (!opp) return;
+    var el2 = Math.max(0, Math.min(DUR * 1000, Date.now() - startAt));
+    if (opp.bot) {
+      opp.taps = Math.floor(el2 / 1000 * opp.cps * (1 + 0.14 * Math.sin(el2 / 650)));
+      opp.done = el2 >= DUR * 1000;
+      return;
+    }
+    var ps = room ? room.peers() : [];
+    opp.gone = true;
+    for (var i = 0; i < ps.length; i++) {
+      if (ps[i].peer === opp.peer) {
+        opp.gone = false;
+        var pr = ps[i].presence || {};
+        if (pr.rid === startAt) { opp.taps = pr.taps || 0; opp.done = !!pr.done; }
+        if (typeof pr.nick === 'string' && pr.nick) opp.nick = pr.nick;
+      }
+    }
+    if (opp.gone && phase === 'done') opp.done = true;
+  }
+  function loop() {
+    var now = Date.now();
+    if (phase === 'countdown') {
+      var rem = startAt - now;
+      if (rem <= 0) { phase = 'running'; renderAll(); }
+      else { var n = Math.ceil(rem / 1000), st = $('status'); st.className = 'status big'; st.textContent = n > 3 ? '준비' : String(n); }
+    }
+    if (phase === 'running') {
+      var e = now - startAt;
+      if (e >= DUR * 1000) { finish(); return; }
+      $('clock').textContent = fmt(e);
+      $('barFill').style.width = (e / (DUR * 10)) + '%';
+      var st2 = $('status'); st2.className = 'status live'; st2.textContent = '남은 시간 ' + Math.max(0, DUR - e / 1000).toFixed(1) + '초';
+      if (now - lastBoard > 120) { lastBoard = now; renderBoard(); }
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  function tap() {
+    if (phase !== 'running') return;
+    var e = Date.now() - startAt;
+    if (e >= DUR * 1000 || e < 0) return;
+    taps++; laps.push(e);
+    var before = levelInfo(P.xp).L;
+    P.xp++;
+    var after = levelInfo(P.xp).L;
+    if (after > before) toast('레벨 업! Lv.' + after);
+    try { if (navigator.vibrate) navigator.vibrate(6); } catch (e2) {}
+    $('myCount').textContent = taps;
+    if (room) room.presence({ taps: taps });
+    renderLaps(); renderRank(); renderBoard();
+  }
+  function finish() {
+    phase = 'done';
+    $('clock').textContent = fmt(DUR * 1000);
+    $('barFill').style.width = '100%';
+    if (room) room.presence({ taps: taps, done: true });
+    readOpp();
+    renderAll();
+    if (opp && (opp.bot || opp.done)) scheduleSettle(900); else scheduleSettle(3200);
+  }
+  function scheduleSettle(ms) { clearTimeout(settleTimer); settleTimer = setTimeout(settle, ms); }
+  function abort() {
+    if (phase === 'searching') {
+      clearInterval(searchTimer); phase = 'idle'; sync({ searching: false }); renderAll(); return;
+    }
+    if (phase === 'countdown') {
+      cancelAnimationFrame(raf); phase = 'idle'; taps = 0; laps = []; P.xp = xpStart;
+      sync({ searching: false, rid: 0, startAt: null, opp: null, taps: 0, done: false }); renderAll(); return;
+    }
+    if (phase === 'running') {
+      cancelAnimationFrame(raf);
+      if (ranked) { forfeit = true; phase = 'done'; if (room) room.presence({ taps: taps, done: true }); settle(); }
+      else { phase = 'idle'; sync({ rid: 0, startAt: null, opp: null, taps: 0, done: false }); renderAll(); }
+    }
+  }
+
+  /* ---------- result: tier and level change ---------- */
+  function settle() {
+    if (settled || phase !== 'done') return;
+    settled = true; clearTimeout(settleTimer);
+    readOpp();
+    var oppTaps = opp ? (opp.taps || 0) : 0, res = 'practice';
+    var bonus = 8;
+    if (ranked) {
+      res = forfeit ? 'lose' : (taps > oppTaps ? 'win' : taps < oppTaps ? 'lose' : 'draw');
+      if (res === 'win') { P.step = Math.min(MAXSTEP, P.step + 1); P.wins++; bonus = 40; }
+      else if (res === 'lose') { if (P.step > 1) P.step -= 1; P.losses++; bonus = 15; }
+      else bonus = 20;
+    } else if (opp && opp.bot) {
+      res = taps > oppTaps ? 'win' : taps < oppTaps ? 'lose' : 'draw';
+    }
+    P.xp += bonus;
+    saveLocal(); saveRemote();
+    var lvNow = levelInfo(P.xp).L;
+    var gained = P.xp - xpStart;
+    $('sheet').hidden = false;
+    var title = $('rTitle');
+    if (ranked) title.textContent = res === 'win' ? '승리!' : res === 'lose' ? (forfeit ? '기권패' : '패배') : '무승부';
+    else title.textContent = res === 'win' ? '연습전 승리' : res === 'lose' ? '연습전 패배' : '연습전 무승부';
+    var sc = $('rScore'); sc.textContent = '';
+    sc.appendChild(el('b', 'me', String(taps))); sc.appendChild(el('span', '', ':')); sc.appendChild(el('b', '', String(oppTaps)));
+    var sh = $('rShift'); sh.textContent = '';
+    var a = el('div', 'nm'); a.appendChild(badge(stepStart, 'lg')); a.appendChild(el('span', '', label(stepStart)));
+    sh.appendChild(a);
+    if (P.step !== stepStart) {
+      sh.appendChild(el('span', 'ar', '→'));
+      var b = el('div', 'nm'); b.appendChild(badge(P.step, 'lg')); b.appendChild(el('span', '', label(P.step)));
+      sh.appendChild(b);
+    }
+    var sub = $('rSub');
+    var oname = opp ? opp.nick || '상대' : '상대';
+    if (!ranked) sub.textContent = oname + '와 연습했어요. 티어는 그대로예요.';
+    else if (P.step === stepStart) sub.textContent = (res === 'draw' ? '무승부라 티어가 그대로예요.' : stepStart <= 1 && res === 'lose' ? '이미 가장 낮은 티어라 더 내려가지 않아요.' : '최고 티어를 지키고 있어요.') + ' 상대는 ' + oname + '.';
+    else if (P.step > stepStart) sub.textContent = tierOf(P.step) > tierOf(stepStart) ? label(stepStart) + ' → ' + label(P.step) + ' 티어 승급!' : label(stepStart) + ' → ' + label(P.step) + ' 승급!';
+    else sub.textContent = label(stepStart) + ' → ' + label(P.step) + ' 강등. 상대는 ' + oname + '.';
+    var g = $('rGain'); g.textContent = '';
+    g.appendChild(document.createTextNode('경험치 '));
+    g.appendChild(el('b', '', '+' + gained));
+    if (lvNow > lvStart) { g.appendChild(document.createTextNode('  ·  레벨 ')); g.appendChild(el('b', '', lvStart + ' → ' + lvNow)); }
+    $('rAgain').textContent = ranked ? '다음 대결' : '한 판 더';
+    $('rAgain').onclick = function () { $('sheet').hidden = true; if (ranked) findMatch(); else startBot(); };
+    sync({ searching: false, rid: startAt, taps: taps, done: true });
+    renderAll(); subscribeHof();
+  }
+  $('rClose').addEventListener('click', function () { $('sheet').hidden = true; });
+
+  /* ---------- rendering ---------- */
+  function toast(t) {
+    var n = $('toast'); n.textContent = t; n.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { n.classList.remove('on'); }, 1700);
+  }
+  function renderRank() {
+    var box = $('rankCard'); box.textContent = '';
+    var li = levelInfo(P.xp);
+    box.appendChild(badge(P.step));
+    var mid = el('div', 'mid');
+    var l1 = el('div', 'l1'); l1.appendChild(el('span', 'tn', label(P.step))); l1.appendChild(el('span', 'lv', 'Lv.' + li.L)); mid.appendChild(l1);
+    var bar = el('div', 'xpbar'); var fill = el('i'); fill.style.width = Math.min(100, li.cur / li.need * 100) + '%'; bar.appendChild(fill); mid.appendChild(bar);
+    var l3 = el('div', 'l3'); l3.appendChild(el('span', '', li.cur + ' / ' + li.need + ' XP')); l3.appendChild(el('span', '', P.wins + '승 ' + P.losses + '패')); mid.appendChild(l3);
+    box.appendChild(mid);
+  }
+  function renderAll() {
+    var busy = phase === 'countdown' || phase === 'running' || phase === 'searching';
+    $('lapBtn').disabled = phase !== 'running';
+    $('lapBtn').classList.toggle('hot', phase === 'running');
+    var g = $('goBtn');
+    g.textContent = busy ? (phase === 'searching' ? '취소' : '중단') : '대결';
+    g.className = 'disc' + (busy ? ' stop' : '');
+    $('botBtn').disabled = busy;
+    $('myCount').textContent = taps;
+    var st = $('status');
+    if (phase === 'idle') {
+      st.className = 'status';
+      st.textContent = room ? '대결을 누르면 같은 티어 상대를 찾아요' : '대결을 누르면 같은 티어의 AI와 승부해요';
+      $('clock').textContent = '00:00.00'; $('barFill').style.width = '0';
+    }
+    if (phase === 'searching') renderStatusSearch();
+    if (phase === 'done') { st.className = 'status live'; st.textContent = '끝! 총 ' + taps + '번'; }
+    renderOnline(); renderRank(); renderBoard(); renderLaps(); renderLadder();
+  }
+  function renderBoard() {
+    var box = $('board'); box.textContent = '';
+    if (phase === 'countdown' || phase === 'running' || phase === 'done') {
+      readOpp();
+      var o = opp || { nick: '상대', taps: 0, step: 0 };
+      var vs = el('div', 'vs');
+      var l = el('div', 'side me'); l.appendChild(badge(P.step, 'sm')); l.appendChild(el('b', '', nick)); l.appendChild(el('span', 'num', String(taps))); l.appendChild(el('small', '', label(P.step)));
+      var r = el('div', 'side'); r.appendChild(badge(o.step || 0, 'sm')); r.appendChild(el('b', '', o.nick || '상대')); r.appendChild(el('span', 'num', String(o.taps || 0))); r.appendChild(el('small', '', o.bot ? 'AI' : label(o.step || 0)));
+      vs.appendChild(l); vs.appendChild(el('span', 'x', 'VS')); vs.appendChild(r);
+      var tug = el('div', 'tug'), fill = el('i'), tot = taps + (o.taps || 0);
+      fill.style.width = (tot ? taps / tot * 100 : 50) + '%'; tug.appendChild(fill); vs.appendChild(tug);
+      box.appendChild(vs);
+      return;
+    }
+    var rows = [{ nick: nick, step: P.step, me: true, st: phase === 'searching' ? '대결 찾는 중' : '대기' }];
+    rivals().forEach(function (p) {
+      var pr = p.presence, busy = typeof pr.startAt === 'number' && Date.now() < pr.startAt + DUR * 1000 + 1000 && pr.rid;
+      rows.push({ nick: pr.nick, step: pr.step || 0, me: false, st: pr.searching ? '대결 찾는 중' : busy ? '대결 중' : '접속' });
+    });
+    rows.forEach(function (r) {
+      var row = el('div', 'prow' + (r.me ? ' me' : ''));
+      row.appendChild(badge(r.step, 'xs'));
+      var nm = el('span', 'nm', r.nick); if (r.me) nm.appendChild(el('em', '', '나'));
+      row.appendChild(nm); row.appendChild(el('span', 'ct wait', label(r.step) + ' · ' + r.st));
+      box.appendChild(row);
+    });
+  }
+  function renderLaps() {
+    var box = $('laps'); box.textContent = '';
+    $('lapNote').textContent = laps.length ? '총 ' + laps.length + '랩' : '';
+    if (!laps.length) { box.appendChild(el('div', 'empty', '출발하면 누른 랩이 여기에 스톱워치처럼 쌓여요.')); return; }
+    var h = el('div', 'lrow head'); ['랩 번호', '스플릿', '전체'].forEach(function (t) { h.appendChild(el('span', '', t)); }); box.appendChild(h);
+    var sp2 = laps.map(function (v, i) { return v - (i ? laps[i - 1] : 0); });
+    var mn = Math.min.apply(null, sp2), mx = Math.max.apply(null, sp2);
+    var low = Math.max(0, laps.length - 40);
+    for (var i = laps.length - 1; i >= low; i--) {
+      var cls = 'lrow';
+      if (laps.length > 1) { if (sp2[i] === mn) cls += ' best'; else if (sp2[i] === mx) cls += ' worst'; }
+      var r = el('div', cls);
+      r.appendChild(el('span', '', '랩 ' + (i + 1))); r.appendChild(el('span', '', fmt(sp2[i]))); r.appendChild(el('span', '', fmt(laps[i])));
+      box.appendChild(r);
+    }
+  }
+  function renderLadder() {
+    var box = $('ladder'); box.textContent = '';
+    var cur = tierOf(P.step);
+    TIERS.forEach(function (T, i) {
+      var s = el('div', 'st' + (i === cur ? ' cur' : i < cur ? ' done' : ''));
+      s.appendChild(badge(i * 3 + 1, 'sm'));
+      s.appendChild(el('span', '', T.n));
+      box.appendChild(s);
+    });
+  }
+
+  /* ---------- profile and ranking (shared db) ---------- */
+  function subscribeHof() {
+    var box = $('hof');
+    if (!db) { box.textContent = ''; box.appendChild(el('div', 'empty', '로그인한 상태에서 열면 세계 랭킹이 보여요.')); return; }
+    if (unsubHof) { unsubHof(); unsubHof = null; }
+    unsubHof = db.collection('scores').orderBy('step', 'desc').limit(100).onSnapshot(function (snap) {
+      var rows = [];
+      snap.docs.forEach(function (d) {
+        var v = d.data() || {};
+        if (typeof v.step === 'number' && v.step > 0) rows.push({ id: d.id, nick: typeof v.nick === 'string' ? v.nick : '이름 없음', step: v.step, xp: v.xp || 0, wins: v.wins | 0, country: v.country });
+      });
+      rows.sort(function (a, b) { return b.step - a.step || b.xp - a.xp || b.wins - a.wins; });
+      hofAll = rows; renderHof();
+    }, function () { var b2 = $('hof'); b2.textContent = ''; b2.appendChild(el('div', 'empty', '랭킹을 열 수 없어요.')); });
+  }
+  function renderHof() {
+    var box = $('hof'), rows = hofTab === 'kr' ? hofAll.filter(function (r) { return r.country === 'KR'; }) : hofAll;
+    box.textContent = '';
+    {
+      rows.slice(0, 50).forEach(function (r, i) {
+        var row = el('div', 'prow' + (r.id === uid ? ' me' : '') + (i < 3 ? ' r' + (i + 1) : ''));
+        row.appendChild(el('span', 'rk', String(i + 1)));
+        row.appendChild(badge(r.step, 'xs'));
+        var nm = el('span', 'nm', r.nick);
+        if (r.id === uid) nm.appendChild(el('em', '', '나'));
+        row.appendChild(nm);
+        row.appendChild(el('span', 'ct wait', label(r.step) + ' · Lv.' + levelInfo(r.xp).L));
+        box.appendChild(row);
+      });
+      if (!rows.length) box.appendChild(el('div', 'empty', '아직 랭크에 오른 사람이 없어요. 첫 승리를 해 보세요.'));
+      var mr = $('myRank'); mr.textContent = '';
+      var idx = -1;
+      for (var k = 0; k < rows.length; k++) if (rows[k].id === uid) idx = k;
+      mr.appendChild(el('span', '', '내 순위'));
+      if (idx >= 0) { mr.appendChild(el('b', '', (idx + 1) + '위')); mr.appendChild(el('span', '', '상위 ' + rows.length + '명 중')); }
+      else if (P.step > 0) { mr.appendChild(el('b', '', '집계 중')); mr.appendChild(el('span', '', '기록이 저장되면 표시돼요')); }
+      else { mr.appendChild(el('b', '', '-')); mr.appendChild(el('span', '', '첫 승리를 하면 랭킹에 올라요')); }
+    }
+  }
+  function subscribeHofOld() {
+    var box = $('hof');
+    if (!db) { box.textContent = ''; box.appendChild(el('div', 'empty', '로그인한 상태에서 열면 모두의 랭킹이 보여요.')); return; }
+    if (unsubHof) { unsubHof(); unsubHof = null; }
+    unsubHof = db.collection('scores').orderBy('step', 'desc').limit(10).onSnapshot(function (snap) {
+      box.textContent = '';
+      var n = 0;
+      snap.docs.forEach(function (d) {
+        var v = d.data() || {};
+        if (typeof v.step !== 'number' || v.step <= 0) return;
+        n++;
+        var row = el('div', 'prow' + (d.id === uid ? ' me' : ''));
+        row.appendChild(el('span', 'rk', String(n)));
+        row.appendChild(badge(v.step, 'xs'));
+        var nm = el('span', 'nm', typeof v.nick === 'string' ? v.nick : '이름 없음');
+        if (d.id === uid) nm.appendChild(el('em', '', '나'));
+        row.appendChild(nm);
+        row.appendChild(el('span', 'ct wait', label(v.step) + ' · Lv.' + levelInfo(v.xp || 0).L));
+        box.appendChild(row);
+      });
+      if (!n) box.appendChild(el('div', 'empty', '아직 랭크에 오른 사람이 없어요. 첫 승리를 해 보세요.'));
+    }, function () { box.textContent = ''; box.appendChild(el('div', 'empty', '랭킹을 열 수 없어요.')); });
+  }
+  async function loadRemote() {
+    if (!db || !uid) return;
+    try {
+      var snap = await db.doc('scores/' + uid).get();
+      if (snap.exists) {
+        var d = snap.data() || {};
+        if (typeof d.xp === 'number' && d.xp >= P.xp && typeof d.step === 'number') {
+          P = { step: Math.max(0, Math.min(MAXSTEP, d.step | 0)), xp: d.xp | 0, wins: d.wins | 0, losses: d.losses | 0 };
+          saveLocal(); sync(); if (!$('gameScreen').hidden && phase === 'idle') renderAll();
+          if (!regionChosen && (d.country === 'KR' || d.country === 'XX')) { COUNTRY = d.country; markRegion(); }
+          else if (d.country !== COUNTRY && P.step > 0) saveRemote();
+        }
+      }
+    } catch (e) {}
+  }
+  async function saveRemote() {
+    if (!db || !uid) return;
+    try {
+      var ref = db.doc('scores/' + uid), snap = await ref.get();
+      var d = snap.exists ? Object.assign({}, snap.data()) : {};
+      d.country = COUNTRY; d.nick = nick; d.step = P.step; d.xp = P.xp; d.wins = P.wins; d.losses = P.losses;
+      await ref.set(d);
+    } catch (e) {}
+  }
+
+  /* ---------- input ---------- */
+  var lap = $('lapBtn');
+  lap.addEventListener('pointerdown', function (e) { e.preventDefault(); tap(); });
+  lap.addEventListener('click', function (e) { if (e.detail === 0) tap(); });
+  $('goBtn').addEventListener('click', function () { if (phase === 'idle' || phase === 'done') findMatch(); else abort(); });
+  $('botBtn').addEventListener('click', startBot);
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat) return;
+    if ((e.code === 'Space' || e.code === 'Enter') && phase === 'running' && document.activeElement && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault(); lap.classList.add('press'); tap();
+    }
+  });
+  document.addEventListener('keyup', function (e) { if (e.code === 'Space' || e.code === 'Enter') lap.classList.remove('press'); });
+
+  function markRegion() {
+    var bs = $('regionTabs').querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-r') === COUNTRY ? 'true' : 'false');
+  }
+  $('regionTabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    COUNTRY = b.getAttribute('data-r') === 'KR' ? 'KR' : 'XX'; regionChosen = true;
+    try { localStorage.setItem('lapbattle.region', COUNTRY); } catch (e2) {}
+    markRegion();
+  });
+  $('rankTabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    hofTab = b.getAttribute('data-t') === 'kr' ? 'kr' : 'world';
+    var bs = $('rankTabs').querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', bs[i] === b ? 'true' : 'false');
+    renderHof();
+  });
+
+  /* ---------- boot: page works alone, room and db light up later ---------- */
+  markRegion();
+  show();
+  var c = window.claude;
+  if (c && c.use) {
+    c.use('db').then(function (d) { db = d; if (!$('gameScreen').hidden) subscribeHof(); return c.use('user'); })
+      .then(function (u) { return u && u.id ? u.id() : null; })
+      .then(function (id) { uid = id || null; return loadRemote(); }).catch(function () {});
+    c.use('room').then(function (r) {
+      if (!r) return;
+      room = r;
+      r.onConnection(function (ok) { connected = ok; renderOnline(); });
+      sync({ searching: false, rid: 0, taps: 0 });
+      r.onPeers(onPeers);
+      renderAll();
+    }).catch(function () {});
+  }
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+}
+</script>
+</body></html>

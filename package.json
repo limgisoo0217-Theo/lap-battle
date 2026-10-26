@@ -1,0 +1,21 @@
+{
+  "name": "lap-battle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "스피드 랩 레전드 - 대결 스톱워치",
+  "scripts": {
+    "assets": "npx @capacitor/assets generate --ios --iconBackgroundColor '#000000' --splashBackgroundColor '#000000'",
+    "sync": "npx cap sync ios",
+    "open": "npx cap open ios",
+    "assets-android": "npx @capacitor/assets generate --android --iconBackgroundColor '#000000' --splashBackgroundColor '#000000'"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/android": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/assets": "^3.0.5"
+  }
+}

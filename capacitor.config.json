@@ -1,0 +1,11 @@
+{
+  "appId": "com.example.lapbattle",
+  "appName": "스피드 랩 레전드",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#000000",
+    "allowsLinkPreview": false,
+    "scrollEnabled": false
+  }
+}

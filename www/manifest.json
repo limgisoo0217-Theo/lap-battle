@@ -1,0 +1,27 @@
+{
+  "name": "스피드 랩 레전드",
+  "short_name": "랩 레전드",
+  "description": "10초 동안 랩 버튼을 더 많이 누르는 대결 스톱워치",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

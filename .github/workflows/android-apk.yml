@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: App icon (best effort)
+        run: npx @capacitor/assets generate --android --iconBackgroundColor '#000000' --splashBackgroundColor '#000000' || echo "icon generation skipped"
+
+      - name: Sync web files
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Publish APK to a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk lap-battle.apk
+          gh release delete apk-latest --cleanup-tag -y || true
+          gh release create apk-latest lap-battle.apk \
+            --title "스피드 랩 레전드 안드로이드 (테스트용 APK)" \
+            --notes "휴대폰에서 lap-battle.apk를 받아 설치하세요. 최신 main 코드로 자동 빌드됩니다."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lap-battle-apk
+          path: lap-battle.apk
